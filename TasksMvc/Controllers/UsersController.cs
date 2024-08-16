@@ -2,8 +2,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using TasksMvc.Models;
+using TasksMvc.Services;
 
 namespace TasksMvc.Controllers
 {
@@ -11,12 +13,15 @@ namespace TasksMvc.Controllers
 	{
 		private readonly UserManager<IdentityUser> _userManager;
 		private readonly SignInManager<IdentityUser> _signInManager;
+		private readonly ApplicationDbContext _applicationDbContext;
 
 		public UsersController(UserManager<IdentityUser> userManager,
-			SignInManager<IdentityUser> signInManager)
+			SignInManager<IdentityUser> signInManager,
+			ApplicationDbContext applicationDbContext)
 		{
 			_userManager = userManager;
 			_signInManager = signInManager;
+			_applicationDbContext = applicationDbContext;
 		}
 
 		[AllowAnonymous]
@@ -167,6 +172,58 @@ namespace TasksMvc.Controllers
 			await _signInManager.SignInAsync(user, isPersistent: true, info.LoginProvider);
 
 			return LocalRedirect(defaultReturnUrl);
+		}
+
+		[HttpGet]
+		[Authorize(Roles = Constants.RoleAdmin)]
+		public async Task<IActionResult> List(string message = null)
+		{
+			var users = await _applicationDbContext.Users.Select(user => new UserViewModel
+			{
+				Email = user.Email,
+			}).ToListAsync();
+
+			var model = new UsersListViewModel
+			{
+				Users = users,
+				Message = message
+			};
+
+			return View(model);
+		}
+
+		[HttpPost]
+		[Authorize(Roles = Constants.RoleAdmin)]
+		public async Task<IActionResult> MakeAdmin(string email)
+		{
+			var user = await _applicationDbContext.Users.Where(user => user.Email == email).FirstOrDefaultAsync();
+
+			if (user is null)
+			{
+				return NotFound();
+			}
+
+			await _userManager.AddToRoleAsync(user, Constants.RoleAdmin);
+
+			return RedirectToAction("List",
+				routeValues: new { message = "Role assigned successfully to " + email });
+		}
+
+		[HttpPost]
+		[Authorize(Roles = Constants.RoleAdmin)]
+		public async Task<IActionResult> RemoveAdmin(string email)
+		{
+			var user = await _applicationDbContext.Users.Where(user => user.Email == email).FirstOrDefaultAsync();
+
+			if (user is null)
+			{
+				return NotFound();
+			}
+
+			await _userManager.RemoveFromRoleAsync(user, Constants.RoleAdmin);
+
+			return RedirectToAction("List",
+				routeValues: new { message = "Role removed successfully to " + email });
 		}
 	}
 }

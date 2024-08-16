@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Microsoft.AspNetCore.Identity;
+using System.ComponentModel.DataAnnotations;
 
 namespace TasksMvc.Entities
 {
@@ -11,6 +12,8 @@ namespace TasksMvc.Entities
         public string Description { get; set; }
         public string Order { get; set; }
         public DateTime CreationDate { get; set; }
+        public string UserCreationId { get; set; }
+        public IdentityUser UserCreation { get; set; }
         public List<Step> Steps { get; set;}
         public List<AttachedFile> AttachedFiles { get; set;}
     }
